@@ -170,6 +170,38 @@ class MinimaxPlayer(IsolationPlayer):
         # Return the best move from the last completed search iteration
         return best_move
 
+    def minimize(self, game, max_depth, current_depth):
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise SearchTimeout()
+
+        utility = game.utility(self)
+        if utility != 0:
+            return utility
+
+        if current_depth == max_depth:
+            return self.score(game, self)
+
+        return min([
+            self.maximize(game.forecast_move(move), max_depth, current_depth + 1)
+            for move in game.get_legal_moves()])
+
+    def maximize(self, game, max_depth, current_depth):
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise SearchTimeout()
+
+        utility = game.utility(self)
+        if utility != 0:
+            return utility
+
+        if current_depth == max_depth:
+            return self.score(game, self)
+
+        return max([
+            self.minimize(game.forecast_move(move), max_depth, current_depth + 1)
+            for move in game.get_legal_moves()])
+
+
+
     def minimax(self, game, depth):
         """Implement depth-limited minimax search algorithm as described in
         the lectures.
@@ -212,8 +244,12 @@ class MinimaxPlayer(IsolationPlayer):
         if self.time_left() < self.TIMER_THRESHOLD:
             raise SearchTimeout()
 
-        # TODO: finish this function!
-        raise NotImplementedError
+        moves = dict(zip(game.get_legal_moves(),
+                          [self.minimize(game.forecast_move(move), depth, 1) for move in game.get_legal_moves()]))
+
+        best_move = max(moves, key=lambda k: moves[k])
+
+        return best_move
 
 
 class AlphaBetaPlayer(IsolationPlayer):
@@ -254,8 +290,145 @@ class AlphaBetaPlayer(IsolationPlayer):
         """
         self.time_left = time_left
 
-        # TODO: finish this function!
-        raise NotImplementedError
+        # Initialize the best move so that this function returns something
+        # in case the search fails due to timeout
+        best_move = (-1, -1)
+
+        try:
+            # The try/except block will automatically catch the exception
+            # raised when the timer is about to expire.
+            depth = 1
+            while True:
+                new_move = self.alphabeta(game, depth)
+                if new_move == (-1, -1):
+                    return best_move
+
+                best_move = new_move
+                depth += 1
+
+        except SearchTimeout:
+            pass  # Handle any actions required after timeout as needed
+
+        # Return the best move from the last completed search iteration
+        return best_move
+
+    def minimize(self, game, max_depth, current_depth, alpha, beta):
+        """ Find the move that minimizes the chances of the player 'self' winning on the given game board.
+        If the time is up, raises an exception and stops the current search.
+
+        Parameters
+        ----------
+        game : `isolation.Board`
+            An instance of `isolation.Board` encoding the current state of the
+            game (e.g., player locations and blocked cells).
+
+        max_depth: `int`
+            The maximum depth to search to.
+
+        current_depth: `int`
+            The current depth.
+
+        alpha: `float`
+            The lower bound used for pruning in minimizing layers
+
+        beta: `float`
+            The upper bound used for pruning in maximizing layers
+
+        Returns
+        -------
+        float
+            The expected score of the move the move that minimizes the chances of the player `self` winning.
+        """
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise SearchTimeout()
+
+        utility = game.utility(self)
+        if utility != 0:
+            return utility
+
+        if current_depth == max_depth:
+            return self.score(game, self)
+
+        minimum = float("inf")
+        for move in game.get_legal_moves():
+            minimum = min(minimum,
+                          self.maximize(game.forecast_move(move),
+                                        max_depth,
+                                        current_depth + 1,
+                                        alpha,
+                                        beta
+                                        )
+                          )
+
+            if minimum <= alpha:
+                return minimum
+            beta = min(minimum, beta)
+
+        return minimum
+
+    def maximize(self, game, max_depth, current_depth, alpha, beta):
+        """ Find the move that maximizes the chances of the player 'self' winning on the given game board.
+        If the time is up, raises an exception and stops the current search.
+
+        Parameters
+        ----------
+        game : `isolation.Board`
+            An instance of `isolation.Board` encoding the current state of the
+            game (e.g., player locations and blocked cells).
+
+        max_depth: `int`
+            The maximum depth to search to.
+
+        current_depth: `int`
+            The current depth.
+
+        alpha: `float`
+            The lower bound used for pruning in minimizing layers
+
+        beta: `float`
+            The upper bound used for pruning in maximizing layers
+
+        Returns
+        -------
+        float
+            The expected score of the move the move that maximizes the chances of the player `self` winning.
+        """
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise SearchTimeout()
+
+        utility = game.utility(self)
+        if utility != 0:
+            return utility
+
+        if current_depth == max_depth:
+            return self.score(game, self)
+
+        maximum = float("-inf")
+        best_move = (-1, -1)
+
+        for move in game.get_legal_moves():
+            result = self.minimize(game.forecast_move(move),
+                                   max_depth,
+                                   current_depth + 1,
+                                   alpha,
+                                   beta
+                                   )
+
+            if result > maximum:
+                best_move = move
+                maximum = result
+
+            if maximum >= beta:
+                if current_depth == 0:
+                    return best_move
+                else:
+                    return maximum
+            alpha = max(maximum, alpha)
+
+        if current_depth == 0:
+            return best_move
+        else:
+            return maximum
 
     def alphabeta(self, game, depth, alpha=float("-inf"), beta=float("inf")):
         """Implement depth-limited minimax search with alpha-beta pruning as
@@ -305,5 +478,11 @@ class AlphaBetaPlayer(IsolationPlayer):
         if self.time_left() < self.TIMER_THRESHOLD:
             raise SearchTimeout()
 
-        # TODO: finish this function!
-        raise NotImplementedError
+        best_move = (-1, -1)
+
+        try:
+            best_move = self.maximize(game, depth, 0, alpha, beta)
+        except SearchTimeout:
+            pass
+
+        return best_move
