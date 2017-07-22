@@ -3,11 +3,94 @@ test your agent's strength against a set of known agents using tournament.py
 and include the results in your report.
 """
 import random
+import math
 
 
 class SearchTimeout(Exception):
     """Subclass base exception for code clarity. """
     pass
+
+def custom_score_generator_with_center(A, B, C, D):
+    def generated_custom_score(game, player):
+        """Calculate the heuristic value of a game state from the point of view
+        of the given player.
+
+        This should be the best heuristic function for your project submission.
+
+        Note: this function should be called from within a Player instance as
+        `self.score()` -- you should not need to call this function directly.
+
+        Parameters
+        ----------
+        game : `isolation.Board`
+            An instance of `isolation.Board` encoding the current state of the
+            game (e.g., player locations and blocked cells).
+
+        player : object
+            A player instance in the current game (i.e., an object corresponding to
+            one of the player objects `game.__player_1__` or `game.__player_2__`.)
+
+        Returns
+        -------
+        float
+            The heuristic value of the current game state to the specified player.
+        """
+        score = 0
+
+        opponent = game.get_opponent(player)
+
+        our_moves = float(len(game.get_legal_moves(player)))
+        their_moves = float(len(game.get_legal_moves(opponent)))
+
+        our_position = game.get_player_location(player)
+        our_distance_to_center = math.sqrt((game.width - our_position[0]) ** 2 + (game.height - our_position[1]) ** 2)
+
+        their_position = game.get_player_location(game.get_opponent(player))
+        their_distance_to_center = math.sqrt((game.width - their_position[0]) ** 2 + (game.height - their_position[1]) ** 2)
+
+        score += our_moves * A - their_moves * B + our_distance_to_center * C - their_distance_to_center * D
+
+        return score
+
+    return generated_custom_score
+
+def custom_score_generator(A, B):
+    def generated_custom_score(game, player):
+        """Calculate the heuristic value of a game state from the point of view
+        of the given player.
+
+        This should be the best heuristic function for your project submission.
+
+        Note: this function should be called from within a Player instance as
+        `self.score()` -- you should not need to call this function directly.
+
+        Parameters
+        ----------
+        game : `isolation.Board`
+            An instance of `isolation.Board` encoding the current state of the
+            game (e.g., player locations and blocked cells).
+
+        player : object
+            A player instance in the current game (i.e., an object corresponding to
+            one of the player objects `game.__player_1__` or `game.__player_2__`.)
+
+        Returns
+        -------
+        float
+            The heuristic value of the current game state to the specified player.
+        """
+        score = 0
+
+        opponent = game.get_opponent(player)
+
+        our_moves = float(len(game.get_legal_moves(player)))
+        their_moves = float(len(game.get_legal_moves(opponent)))
+
+        score += our_moves * A - their_moves * B
+
+        return score
+
+    return generated_custom_score
 
 
 def custom_score(game, player):
@@ -34,8 +117,16 @@ def custom_score(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
-    # TODO: finish this function!
-    raise NotImplementedError
+    score = 0
+
+    opponent = game.get_opponent(player)
+
+    our_moves = float(len(game.get_legal_moves(player)))
+    their_moves = float(len(game.get_legal_moves(opponent)))
+
+    score += our_moves * 0.5 - their_moves
+
+    return score
 
 
 def custom_score_2(game, player):
@@ -60,8 +151,18 @@ def custom_score_2(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
-    # TODO: finish this function!
-    raise NotImplementedError
+
+    our_moves = float(len(game.get_legal_moves(player)))
+    their_moves = float(len(game.get_legal_moves(game.get_opponent(player))))
+
+    our_position = game.get_player_location(player)
+    our_distance_to_center = math.sqrt((game.width - our_position[0]) ** 2 + (game.height - our_position[1]) ** 2)
+
+    their_position = game.get_player_location(game.get_opponent(player))
+    their_distance_to_center = math.sqrt((game.width - their_position[0]) ** 2 + (game.height - their_position[1]) ** 2)
+
+    return our_distance_to_center - their_distance_to_center
+
 
 
 def custom_score_3(game, player):
@@ -86,8 +187,8 @@ def custom_score_3(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
-    # TODO: finish this function!
-    raise NotImplementedError
+
+    return float(len(game.get_legal_moves(player))) - float(len(game.get_legal_moves(game.get_opponent(player))))
 
 
 class IsolationPlayer:
@@ -244,10 +345,15 @@ class MinimaxPlayer(IsolationPlayer):
         if self.time_left() < self.TIMER_THRESHOLD:
             raise SearchTimeout()
 
+        best_move = (-1, -1)
+
         moves = dict(zip(game.get_legal_moves(),
                           [self.minimize(game.forecast_move(move), depth, 1) for move in game.get_legal_moves()]))
 
-        best_move = max(moves, key=lambda k: moves[k])
+        try:
+            best_move = max(moves, key=lambda k: moves[k])
+        except ValueError:
+            pass
 
         return best_move
 
